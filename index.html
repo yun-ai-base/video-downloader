@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>视频下载器</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+  .container { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+
+  /* Header */
+  .header { text-align: center; padding: 24px 0 20px; }
+  .header h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header p { font-size: 13px; color: #666; margin-top: 4px; }
+
+  /* Card */
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+
+  /* Input area */
+  .input-group {
+    display: flex;
+    gap: 10px;
+  }
+  .input-group input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .input-group input:focus { border-color: #4361ee; }
+  .input-group input::placeholder { color: #aaa; }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  .btn-primary {
+    background: #4361ee;
+    color: #fff;
+  }
+  .btn-primary:hover:not(:disabled) { background: #3651d4; }
+
+  .btn-success {
+    background: #06d6a0;
+    color: #fff;
+  }
+  .btn-success:hover:not(:disabled) { background: #05b88a; }
+
+  .btn-outline {
+    background: transparent;
+    color: #666;
+    border: 1.5px solid #ddd;
+  }
+  .btn-outline:hover:not(:disabled) { border-color: #999; color: #333; }
+
+  /* Preview */
+  .preview {
+    display: none;
+    animation: fadeIn .3s;
+  }
+  .preview.show { display: block; }
+
+  .preview-cover {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f0f0f0;
+    aspect-ratio: 16/9;
+    max-height: 360px;
+    object-fit: cover;
+  }
+  .preview-cover img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .preview-cover .platform-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #fff;
+    background: rgba(0,0,0,.6);
+    backdrop-filter: blur(4px);
+  }
+
+  .preview-info { padding-top: 14px; }
+  .preview-info h2 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .preview-info .author {
+    font-size: 13px;
+    color: #888;
+    margin-top: 4px;
+  }
+  .preview-info .meta {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: #999;
+  }
+
+  /* Download */
+  .download-area {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .progress-wrap {
+    display: none;
+    margin-top: 12px;
+  }
+  .progress-wrap.show { display: block; }
+
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e8e8e8;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4361ee, #06d6a0);
+    border-radius: 3px;
+    transition: width .3s;
+  }
+  .progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #888;
+    margin-top: 6px;
+  }
+
+  /* History */
+  .history-list { margin-top: 4px; }
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-item .thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: #f0f0f0;
+    flex-shrink: 0;
+  }
+  .history-item .info { flex: 1; min-width: 0; }
+  .history-item .info .name {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .history-item .info .sub {
+    font-size: 11px;
+    color: #999;
+    margin-top: 2px;
+  }
+  .history-item .open-btn {
+    font-size: 12px;
+    color: #4361ee;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #f0f2ff;
+    border: none;
+    font-weight: 500;
+  }
+  .history-item .del-btn {
+    font-size: 12px;
+    color: #d32f2f;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #fff0f0;
+    border: none;
+    font-weight: 500;
+  }
+  .history-item .del-btn:hover { background: #ffe0e0; }
+  .history-empty {
+    text-align: center;
+    padding: 24px 0;
+    color: #bbb;
+    font-size: 13px;
+  }
+
+  /* Loading spinner */
+  .spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Status messages */
+  .error-msg {
+    display: none;
+    padding: 12px 16px;
+    background: #fff0f0;
+    color: #d32f2f;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-top: 12px;
+    border: 1px solid #ffd0d0;
+  }
+  .error-msg.show { display: block; }
+
+  .success-msg {
+    display: none;
+    padding: 12px 16px;
+    background: #f0fff4;
+    color: #2e7d32;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-top: 12px;
+    border: 1px solid #c8f0d0;
+  }
+  .success-msg.show { display: block; }
+
+  .app-footer {
+    text-align: center;
+    padding: 20px 0 32px;
+    font-size: 12px;
+    color: #bbb;
+  }
+
+  /* Image Gallery */
+  .gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+  }
+  .gallery-item {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    aspect-ratio: 1;
+    background: #f5f5f5;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all .2s;
+  }
+  .gallery-item:hover { border-color: #ccc; }
+  .gallery-item.checked {
+    border-color: #4361ee;
+    box-shadow: 0 0 0 1px #4361ee;
+  }
+  .gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: opacity .2s;
+  }
+  .gallery-item.checked img { opacity: .75; }
+  .gallery-item .overlay {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    transition: background .2s;
+    pointer-events: none;
+  }
+  .gallery-item.checked .overlay {
+    background: rgba(67,97,238,.15);
+  }
+  .gallery-item .check {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .25s;
+  }
+  .gallery-item.checked .check {
+    background: #4361ee;
+    transform: scale(1.1);
+    box-shadow: 0 2px 6px rgba(67,97,238,.4);
+  }
+  .gallery-item .check svg {
+    width: 14px;
+    height: 14px;
+    color: #fff;
+    opacity: .7;
+    transition: opacity .2s;
+  }
+  .gallery-item.checked .check svg { opacity: 1; }
+  .gallery-select-all {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #555;
+  }
+  .gallery-select-all input { accent-color: #4361ee; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.4);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+    animation: fadeIn .2s;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    width: 320px;
+    max-width: 90vw;
+    box-shadow: 0 8px 32px rgba(0,0,0,.15);
+    animation: fadeIn .25s;
+  }
+  .modal-box p {
+    font-size: 15px;
+    line-height: 1.5;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+  }
+  .modal-actions .btn {
+    min-width: 100px;
+    padding: 10px 20px;
+    text-align: center;
+  }
+  .modal-actions .btn-cancel {
+    background: #f2f2f2;
+    color: #666;
+  }
+  .modal-actions .btn-cancel:hover { background: #e8e8e8; }
+  .modal-actions .btn-danger {
+    background: #d32f2f;
+    color: #fff;
+  }
+  .modal-actions .btn-danger:hover { background: #b71c1c; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>视频下载器</h1>
+    <p>支持抖音 / 快手 / 小红书 / X — 粘贴链接，一键下载</p>
+  </div>
+
+  <!-- 输入区 -->
+  <div class="card">
+    <div class="input-group">
+      <input type="text" id="urlInput" placeholder="粘贴抖音 / 快手 / 小红书 / X 分享链接..." autofocus>
+      <button class="btn btn-primary" id="parseBtn">解析</button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="success-msg" id="successMsg"></div>
+  </div>
+
+  <!-- 预览区 -->
+  <div class="card preview" id="preview">
+    <div class="preview-cover">
+      <img id="coverImg" src="" alt="封面">
+      <span class="platform-badge" id="platformBadge">抖音</span>
+    </div>
+    <div class="preview-info">
+      <h2 id="videoTitle">视频标题</h2>
+      <div class="author" id="videoAuthor">作者</div>
+      <div class="download-area">
+        <button class="btn btn-success" id="downloadBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          视频
+        </button>
+        <button class="btn btn-outline" id="audioBtn" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          音频
+        </button>
+        <button class="btn btn-outline" id="imageBtn" style="display:none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          封面
+        </button>
+        <button class="btn btn-outline" id="openFolderBtn">打开文件夹</button>
+        <button class="btn btn-outline" id="directLinkBtn" style="display:none">直接下载</button>
+      </div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+        <div class="progress-text">
+          <span id="progressPct">0%</span>
+          <span id="progressSpeed"></span>
+        </div>
+      </div>
+    </div>
+    <!-- 图片画廊 -->
+    <div class="image-gallery" id="imageGallery" style="display:none">
+      <div style="font-size:14px;font-weight:600;padding:16px 0 10px;">图片列表</div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <label class="gallery-select-all"><input type="checkbox" id="selectAllImgs"> 全选</label>
+        <span style="font-size:12px;color:#999;line-height:30px" id="selectedCount">已选 0 张</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 历史记录 -->
+  <div class="card">
+    <div style="font-size:14px;font-weight:600;padding-bottom:4px;">下载记录</div>
+    <div class="history-list" id="historyList">
+      <div class="history-empty">还没有下载记录</div>
+    </div>
+  </div>
+
+  <div class="app-footer">视频下载器 v1.0</div>
+</div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <p id="modalText">确定删除这条记录和对应的视频文件？</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="modalCancel">取消</button>
+      <button class="btn btn-danger" id="modalConfirm">删除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const urlInput = document.getElementById('urlInput');
+const parseBtn = document.getElementById('parseBtn');
+const preview = document.getElementById('preview');
+const coverImg = document.getElementById('coverImg');
+const platformBadge = document.getElementById('platformBadge');
+const videoTitle = document.getElementById('videoTitle');
+const videoAuthor = document.getElementById('videoAuthor');
+const downloadBtn = document.getElementById('downloadBtn');
+const openFolderBtn = document.getElementById('openFolderBtn');
+const directLinkBtn = document.getElementById('directLinkBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressPct = document.getElementById('progressPct');
+const progressSpeed = document.getElementById('progressSpeed');
+const errorMsg = document.getElementById('errorMsg');
+const successMsg = document.getElementById('successMsg');
+const historyList = document.getElementById('historyList');
+const audioBtn = document.getElementById('audioBtn');
+const imageBtn = document.getElementById('imageBtn');
+const imageGallery = document.getElementById('imageGallery');
+const galleryGrid = document.getElementById('galleryGrid');
+const selectAllImgs = document.getElementById('selectAllImgs');
+const selectedCount = document.getElementById('selectedCount');
+
+let currentVideo = null;
+let downloading = false;
+let selectedImageUrls = [];
+
+const PLATFORM_NAMES = { douyin: '抖音', kuaishou: '快手', xiaohongshu: '小红书', x: 'X' };
+
+// 显示/隐藏消息
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.classList.add('show');
+  successMsg.classList.remove('show');
+}
+function showSuccess(msg) {
+  successMsg.textContent = msg;
+  successMsg.classList.add('show');
+  errorMsg.classList.remove('show');
+}
+function clearMessages() {
+  errorMsg.classList.remove('show');
+  successMsg.classList.remove('show');
+}
+
+function formatSize(bytes) {
+  if (!bytes) return '未知';
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
+  return (bytes / 1024 / 1024).toFixed(1) + 'MB';
+}
+
+// 解析
+parseBtn.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) { showError('请输入视频链接'); return; }
+
+  clearMessages();
+  parseBtn.disabled = true;
+  parseBtn.innerHTML = '<span class="spinner"></span>解析中...';
+  preview.classList.remove('show');
+
+  try {
+    const res = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      showError(data.error || '解析失败');
+      return;
+    }
+
+    currentVideo = data;
+    coverImg.src = data.coverUrl || '';
+    platformBadge.textContent = PLATFORM_NAMES[data.platform] || data.platform;
+    videoTitle.textContent = data.title || '笔记';
+    videoAuthor.textContent = data.author ? `作者: ${data.author}` : '';
+    // 没有视频时隐藏视频下载按钮
+    downloadBtn.style.display = data.videoUrl ? '' : 'none';
+    audioBtn.style.display = data.audioUrl ? '' : 'none';
+    imageBtn.style.display = (data.coverUrl || (data.images && data.images.length)) ? '' : 'none';
+    // 图片画廊
+    if (data.images && data.images.length > 1) {
+      renderGallery(data.images);
+      imageGallery.style.display = 'block';
+      selectedImageUrls = [...data.images];
+      updateSelectedCount();
+      imageBtn.textContent = `下载选中 (${data.images.length})`;
+    } else {
+      imageGallery.style.display = 'none';
+      imageBtn.textContent = '封面';
+    }
+    // 直接下载按钮（浏览器 fetch+blob 方式，保存为文件）
+    if (data.videoUrl) {
+      directLinkBtn.dataset.videoUrl = data.videoUrl;
+      directLinkBtn.dataset.fileName = (data.title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60) + '.mp4';
+      directLinkBtn.style.display = '';
+    } else {
+      directLinkBtn.style.display = 'none';
+    }
+    preview.classList.add('show');
+    showSuccess('解析成功，可以下载了');
+  } catch (err) {
+    showError('网络错误: ' + err.message);
+  } finally {
+    parseBtn.disabled = false;
+    parseBtn.textContent = '解析';
+  }
+});
+
+// 回车解析
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') parseBtn.click();
+});
+
+// 图片画廊
+function renderGallery(imgs) {
+  galleryGrid.innerHTML = imgs.map((url, i) => {
+    const checked = selectedImageUrls.includes(url);
+    return `
+      <div class="gallery-item ${checked ? 'checked' : ''}" data-url="${url}" data-idx="${i}" onclick="toggleImage(this)">
+        <img src="${url}" alt="图${i + 1}" loading="lazy" onerror="this.style.display='none'">
+        <div class="overlay"></div>
+        <div class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      </div>`;
+  }).join('');
+}
+
+function toggleImage(el) {
+  const url = el.dataset.url;
+  const idx = selectedImageUrls.indexOf(url);
+  if (idx >= 0) {
+    selectedImageUrls.splice(idx, 1);
+    el.classList.remove('checked');
+  } else {
+    selectedImageUrls.push(url);
+    el.classList.add('checked');
+  }
+  updateSelectedCount();
+}
+
+function updateSelectedCount() {
+  selectedCount.textContent = `已选 ${selectedImageUrls.length} 张`;
+  const btn = document.getElementById('imageBtn');
+  if (btn.textContent !== '封面') btn.textContent = `下载选中 (${selectedImageUrls.length})`;
+}
+
+selectAllImgs.addEventListener('change', () => {
+  const items = document.querySelectorAll('.gallery-item');
+  if (selectAllImgs.checked) {
+    selectedImageUrls = [...currentVideo.images];
+    items.forEach(el => el.classList.add('checked'));
+  } else {
+    selectedImageUrls = [];
+    items.forEach(el => el.classList.remove('checked'));
+  }
+  updateSelectedCount();
+});
+
+// 通用下载函数
+async function startDownload(type) {
+  if (!currentVideo || downloading) return;
+
+  downloading = true;
+  downloadBtn.disabled = true;
+  audioBtn.disabled = true;
+  imageBtn.disabled = true;
+
+  const label = type === 'audio' ? '音频' : type === 'image' ? '封面' : '视频';
+
+  parseBtn.disabled = false;
+  parseBtn.textContent = '解析';
+  downloadBtn.innerHTML = `<span class="spinner"></span>${label}...`;
+  progressWrap.classList.add('show');
+  progressFill.style.width = '0%';
+  progressPct.textContent = '0%';
+  progressSpeed.textContent = '';
+  clearMessages();
+
+  try {
+    const body = { ...currentVideo, type };
+    if (type === 'image' && selectedImageUrls.length) body.selectedImages = selectedImageUrls;
+    const res = await fetch('/api/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const json = line.slice(6).trim();
+        if (!json) continue;
+        const data = JSON.parse(json);
+
+        if (data.error) {
+          showError(data.error);
+          break;
+        }
+        if (data.done) {
+          progressFill.style.width = '100%';
+          progressPct.textContent = '100%';
+          if (data.count) {
+            progressSpeed.textContent = `${data.count} 个文件`;
+            showSuccess(`下载完成: ${data.count} 张图片`);
+          } else {
+            progressSpeed.textContent = formatSize(data.size);
+            showSuccess(`下载完成: ${data.fileName}`);
+          }
+          urlInput.value = '';
+          urlInput.focus();
+          loadHistory();
+          break;
+        }
+        if (data.status) {
+          progressFill.style.width = '0%';
+          progressPct.textContent = data.status;
+          progressSpeed.textContent = '';
+        } else if (data.progress >= 0) {
+          progressFill.style.width = data.progress + '%';
+          progressPct.textContent = data.progress + '%';
+          progressSpeed.textContent = formatSize(data.downloaded);
+        } else {
+          progressSpeed.textContent = formatSize(data.downloaded);
+        }
+      }
+    }
+  } catch (err) {
+    showError('下载失败: ' + err.message);
+  } finally {
+    downloading = false;
+    downloadBtn.disabled = false;
+    audioBtn.disabled = false;
+    imageBtn.disabled = false;
+    downloadBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>视频';
+  }
+}
+
+downloadBtn.addEventListener('click', () => startDownload('video'));
+audioBtn.addEventListener('click', () => startDownload('audio'));
+imageBtn.addEventListener('click', () => startDownload('image'));
+
+// 打开文件夹
+openFolderBtn.addEventListener('click', async () => {
+  await fetch('/api/open-folder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filePath: '' }) });
+});
+
+// 直接下载按钮：fetch+blob 触发浏览器下载（绕过服务器）
+directLinkBtn.addEventListener('click', async () => {
+  const url = directLinkBtn.dataset.videoUrl;
+  const fileName = directLinkBtn.dataset.fileName || 'video.mp4';
+  if (!url) return;
+  directLinkBtn.disabled = true;
+  directLinkBtn.textContent = '下载中...';
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 100);
+    directLinkBtn.textContent = '已下载';
+    setTimeout(() => { directLinkBtn.textContent = '直接下载'; directLinkBtn.disabled = false; }, 2000);
+  } catch (e) {
+    directLinkBtn.textContent = '下载失败';
+    showError('浏览器下载失败: ' + e.message + '，请检查代理或右键视频链接另存为');
+    setTimeout(() => { directLinkBtn.textContent = '直接下载'; directLinkBtn.disabled = false; }, 3000);
+  }
+});
+
+// 打开文件位置 (从历史记录)
+async function openFileLocation(filePath) {
+  await fetch('/api/open-folder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filePath }) });
+}
+
+let pendingDelete = null;
+
+function showModal(text) {
+  return new Promise((resolve) => {
+    document.getElementById('modalText').textContent = text;
+    document.getElementById('modal').classList.add('show');
+    pendingDelete = resolve;
+  });
+}
+
+document.getElementById('modalCancel').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('show');
+  if (pendingDelete) { pendingDelete(false); pendingDelete = null; }
+});
+document.getElementById('modalConfirm').addEventListener('click', () => {
+  document.getElementById('modal').classList.remove('show');
+  if (pendingDelete) { pendingDelete(true); pendingDelete = null; }
+});
+
+async function deleteRecord(filePath, btn) {
+  const ok = await showModal('确定删除这条记录和对应的视频文件？');
+  if (!ok) return;
+  const res = await fetch('/api/delete-record', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filePath, deleteFile: true }),
+  });
+  const data = await res.json();
+  if (data.success) {
+    const item = btn.closest('.history-item');
+    item.style.transition = 'all .2s';
+    item.style.opacity = '0';
+    item.style.transform = 'translateX(20px)';
+    setTimeout(() => item.remove(), 200);
+  }
+}
+
+// 加载历史
+async function loadHistory() {
+  try {
+    const res = await fetch('/api/history');
+    const list = await res.json();
+    if (!list.length) {
+      historyList.innerHTML = '<div class="history-empty">还没有下载记录</div>';
+      return;
+    }
+    historyList.innerHTML = list.map((item, idx) => `
+      <div class="history-item" data-path="${item.path.replace(/"/g, '&quot;')}" data-idx="${idx}">
+        <img class="thumb" src="${item.coverUrl || ''}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22><rect fill=%22%23f0f0f0%22 width=%2248%22 height=%2248%22/></svg>'">
+        <div class="info">
+          <div class="name">${item.title || item.fileName}</div>
+          <div class="sub">${PLATFORM_NAMES[item.platform] || item.platform || ''} · ${formatSize(item.size)} · ${new Date(item.date).toLocaleString()}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="open-btn" onclick="openFileLocation(this.closest('.history-item').dataset.path)">打开</button>
+          <button class="del-btn" onclick="deleteRecord(this.closest('.history-item').dataset.path, this)">删除</button>
+        </div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+loadHistory();
+</script>
+</body>
+</html>
