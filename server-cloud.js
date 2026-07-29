@@ -109,47 +109,24 @@ app.post('/api/parse', async (req, res) => {
 
 app.get('/api/status', (req, res) => res.json({ ok: true, name: '视频下载器', version: '1.0.0' }));
 
-// ===== 下载代理：重新解析+强制下载 =====
+// ===== 下载代理：yt-dlp 直接管道输出 =====
 app.get('/api/dl', async (req, res) => {
   const { shareUrl, platform, title } = req.query;
   if (!shareUrl) return res.status(400).json({ error: '缺少视频地址' });
 
-  try {
-    // 重新解析获取最新视频地址
-    let videoUrl;
-    if (platform === 'bilibili') {
-      const result = await parseBilibili(shareUrl);
-      videoUrl = result.videoUrl;
-    } else {
-      // 用 yt-dlp --get-url 获取真实视频地址
-      videoUrl = await new Promise((resolve, reject) => {
-        const cmd = `"${YTDLP}" --get-url --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
-        exec(cmd, { maxBuffer: 1024 * 1024, timeout: 60000 }, (err, stdout, stderr) => {
-          if (err) return reject(new Error('获取视频地址失败: ' + (stderr || err.message).substring(0, 200)));
-          const url = stdout.trim().split('\n')[0];
-          if (url) resolve(url);
-          else reject(new Error('未获取到视频地址'));
-        });
-      });
-    }
-    if (!videoUrl) throw new Error('无法获取视频地址');
+  const fileName = encodeURIComponent((title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60)) + '.mp4';
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
+  res.setHeader('Content-Type', 'video/mp4');
 
-    const fileName = encodeURIComponent((title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60)) + '.mp4';
-    const http = require(videoUrl.startsWith('https') ? 'https' : 'http');
+  // 用 yt-dlp 直接下载并输出到 stdout
+  const cmd = `"${YTDLP}" -f best[height<=1080] -o - --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
+  const proc = exec(cmd, { maxBuffer: 1024 * 1024 * 500, timeout: 300000 });
 
-    const videoRes = await new Promise((resolve, reject) => {
-      http.get(videoUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.bilibili.com/' }, rejectUnauthorized: false }, resolve).on('error', reject);
-    });
-
-    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
-    res.setHeader('Content-Type', videoRes.headers['content-type'] || 'video/mp4');
-    if (videoRes.headers['content-length']) {
-      res.setHeader('Content-Length', videoRes.headers['content-length']);
-    }
-    videoRes.pipe(res);
-  } catch (err) {
-    console.error('[下载失败]', err.message);
-    if (!res.headersSent) res.status(500).json({ error: '下载失败: ' + err.message });
+  proc.stdout.pipe(res);
+  proc.stderr.on('data', d => process.stderr.write(d));
+  proc.on('error', err => { if (!res.headersSent) res.status(500).json({ error: '下载失败' }); });
+  proc.on('exit', code => { if (code !== 0) console.error('[下载失败] exit:', code); });
+});
   }
 });
 
