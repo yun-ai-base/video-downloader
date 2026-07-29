@@ -15,7 +15,7 @@ RUN npm init -y && npm install express axios
 
 # 复制应用代码
 COPY server-cloud.js ./
-COPY index-cloud.html ./index.html
+COPY index-cloud.html ./
 
 EXPOSE 3000
 
