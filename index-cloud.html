@@ -311,12 +311,14 @@ urlInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') parseBtn.click();
 });
 
-// 直接下载（打开新窗口，浏览器原生处理）
+// 直接下载（通过服务器中转，强制下载文件）
 downloadBtn.addEventListener('click', () => {
   if (!currentVideo?.videoUrl) return;
   const url = currentVideo.videoUrl;
-  window.open(url, '_blank');
-  showSuccess('✅ 已打开视频链接，浏览器弹出后右键可保存');
+  const title = currentVideo.title || 'video';
+  // 跳转到中转下载接口
+  window.location.href = '/api/dl?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title);
+  showSuccess('✅ 下载已开始');
 });
 
 // 复制链接
