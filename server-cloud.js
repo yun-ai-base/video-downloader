@@ -15,8 +15,11 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HISTORY_FILE = path.join(__dirname, 'history.json');
 
-// yt-dlp 路径（Docker 中在 /usr/local/bin/yt-dlp）
-const YTDLP = execSync('which yt-dlp 2>/dev/null', { encoding: 'utf8', timeout: 5000 }).trim() || 'yt-dlp';
+// yt-dlp 路径
+let YTDLP = 'yt-dlp';
+try {
+  YTDLP = execSync('which yt-dlp 2>/dev/null || command -v yt-dlp 2>/dev/null', { encoding: 'utf8', timeout: 5000 }).trim() || 'yt-dlp';
+} catch { YTDLP = 'yt-dlp'; }
 console.log(`[云端] yt-dlp: ${YTDLP}`);
 
 // Railway 上不需要代理（海外部署）
