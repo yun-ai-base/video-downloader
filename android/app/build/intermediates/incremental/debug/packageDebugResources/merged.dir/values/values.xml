@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">视频下载器</string>
+    <style name="Theme.VideoDownloader" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">#4361ee</item>
+        <item name="colorPrimaryDark">#3651d4</item>
+        <item name="colorAccent">#4361ee</item>
+        <item name="android:statusBarColor">#3651d4</item>
+    </style>
+</resources>

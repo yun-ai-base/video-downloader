@@ -24,3 +24,100 @@ Emitted 'error' event on Server instance at:
 }
 
 Node.js v22.15.0
+🚀 视频下载器已启动: http://localhost:3000
+📱 手机访问: http://192.168.137.1:3000
+📱 手机访问: http://192.168.1.4:3000
+📁 下载目录: D:\applications\AI_files\video-downloader\downloads
+[解析] 平台: douyin, 链接: https://v.douyin.com/SbyY5Q2rI4E/
+[代理下载] 请求: {
+  name: '纯欲不纯，欲拒还迎 （姐姐最懂怎样勾人） #纯欲 #美人 - 抖音',
+  platform: 'douyin',
+  urlLen: 587
+}
+[代理下载] 失败: Invalid character in header content ["Content-Disposition"]
+[代理下载] 请求: {
+  name: '纯欲不纯，欲拒还迎 （姐姐最懂怎样勾人） #纯欲 #美人 - 抖音',
+  platform: 'douyin',
+  urlLen: 587
+}
+[代理下载] 失败: Invalid character in header content ["Content-Disposition"]
+D:\applications\AI_files\video-downloader\server.js:996
+    const fileName = encodeURIComponent((name || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60);
+                                                                                                        ^
+
+SyntaxError: missing ) after argument list
+    at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+    at Module._compile (node:internal/modules/cjs/loader:1704:20)
+    at Object..js (node:internal/modules/cjs/loader:1895:10)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.15.0
+D:\applications\AI_files\video-downloader\server.js:996
+    const fileName = encodeURIComponent((name || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60);
+                                                                                                        ^
+
+SyntaxError: missing ) after argument list
+    at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+    at Module._compile (node:internal/modules/cjs/loader:1704:20)
+    at Object..js (node:internal/modules/cjs/loader:1895:10)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.15.0
+D:\applications\AI_files\video-downloader\server.js:996
+    const fileName = encodeURIComponent((name || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60);
+                                                                                                        ^
+
+SyntaxError: missing ) after argument list
+    at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+    at Module._compile (node:internal/modules/cjs/loader:1704:20)
+    at Object..js (node:internal/modules/cjs/loader:1895:10)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.15.0
+D:\applications\AI_files\video-downloader\server.js:996
+    const fileName = encodeURIComponent((name || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60);
+                                                                                                        ^
+
+SyntaxError: missing ) after argument list
+    at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+    at Module._compile (node:internal/modules/cjs/loader:1704:20)
+    at Object..js (node:internal/modules/cjs/loader:1895:10)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.15.0
+D:\applications\AI_files\video-downloader\server.js:996
+    const fileName = encodeURIComponent((name || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60);
+                                                                                                        ^
+
+SyntaxError: missing ) after argument list
+    at wrapSafe (node:internal/modules/cjs/loader:1662:18)
+    at Module._compile (node:internal/modules/cjs/loader:1704:20)
+    at Object..js (node:internal/modules/cjs/loader:1895:10)
+    at Module.load (node:internal/modules/cjs/loader:1465:32)
+    at Function._load (node:internal/modules/cjs/loader:1282:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)
+    at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:170:5)
+    at node:internal/main/run_main_module:36:49
+
+Node.js v22.15.0

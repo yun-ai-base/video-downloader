@@ -2,7 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4361ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icon.svg">
 <title>视频下载器</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -225,6 +230,9 @@
     font-weight: 500;
   }
   .history-item .del-btn:hover { background: #ffe0e0; }
+  .phone-badge { font-size: 11px; color: #999; line-height: 28px; }
+  .history-item[data-phone="true"] .open-btn { display: none; }
+
   .history-empty {
     text-align: center;
     padding: 24px 0;
@@ -403,19 +411,35 @@
     color: #fff;
   }
   .modal-actions .btn-danger:hover { background: #b71c1c; }
+
+  .clear-history-btn {
+    font-size: 12px;
+    color: #999;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    background: transparent;
+    transition: all .2s;
+  }
+  .clear-history-btn:hover { border-color: #d32f2f; color: #d32f2f; }
 </style>
 </head>
 <body>
 <div class="container">
   <div class="header">
     <h1>视频下载器</h1>
-    <p>支持抖音 / 快手 / 小红书 / X — 粘贴链接，一键下载</p>
+    <p>支持抖音 / 快手 / 小红书 / X / B站 / YouTube / 微博 — 粘贴链接，一键下载</p>
+    <div style="margin-top:8px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-outline" id="biliLoginBtn" style="font-size:12px;padding:6px 14px" onclick="bilibiliLogin()">🔑 B站登录</button>
+      <span id="biliStatus" style="font-size:12px;line-height:34px;color:#999;display:none">✅ B站已登录</span>
+    </div>
   </div>
 
   <!-- 输入区 -->
   <div class="card">
     <div class="input-group">
-      <input type="text" id="urlInput" placeholder="粘贴抖音 / 快手 / 小红书 / X 分享链接..." autofocus>
+      <input type="text" id="urlInput" placeholder="粘贴抖音 / 快手 / 小红书 / X / B站 / YouTube / 微博 分享链接..." autofocus>
       <button class="btn btn-primary" id="parseBtn">解析</button>
     </div>
     <div class="error-msg" id="errorMsg"></div>
@@ -446,6 +470,7 @@
         </button>
         <button class="btn btn-outline" id="openFolderBtn">打开文件夹</button>
         <button class="btn btn-outline" id="directLinkBtn" style="display:none">直接下载</button>
+        <button class="btn btn-outline" id="phoneDownloadBtn" style="display:none">📱 下载到手机</button>
       </div>
       <div class="progress-wrap" id="progressWrap">
         <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
@@ -468,7 +493,10 @@
 
   <!-- 历史记录 -->
   <div class="card">
-    <div style="font-size:14px;font-weight:600;padding-bottom:4px;">下载记录</div>
+    <div style="font-size:14px;font-weight:600;padding-bottom:4px;display:flex;justify-content:space-between;align-items:center;">
+      <span>下载记录</span>
+      <button class="clear-history-btn" id="clearHistoryBtn" onclick="clearHistory()">清除记录</button>
+    </div>
     <div class="history-list" id="historyList">
       <div class="history-empty">还没有下载记录</div>
     </div>
@@ -498,6 +526,7 @@ const videoAuthor = document.getElementById('videoAuthor');
 const downloadBtn = document.getElementById('downloadBtn');
 const openFolderBtn = document.getElementById('openFolderBtn');
 const directLinkBtn = document.getElementById('directLinkBtn');
+const phoneDownloadBtn = document.getElementById('phoneDownloadBtn');
 const progressWrap = document.getElementById('progressWrap');
 const progressFill = document.getElementById('progressFill');
 const progressPct = document.getElementById('progressPct');
@@ -516,7 +545,7 @@ let currentVideo = null;
 let downloading = false;
 let selectedImageUrls = [];
 
-const PLATFORM_NAMES = { douyin: '抖音', kuaishou: '快手', xiaohongshu: '小红书', x: 'X' };
+const PLATFORM_NAMES = { douyin: '抖音', kuaishou: '快手', xiaohongshu: '小红书', x: 'X', q7u6h: '视频', bilibili: 'B站', youtube: 'YouTube', weibo: '微博' };
 
 // 显示/隐藏消息
 function showError(msg) {
@@ -589,8 +618,17 @@ parseBtn.addEventListener('click', async () => {
       directLinkBtn.dataset.videoUrl = data.videoUrl;
       directLinkBtn.dataset.fileName = (data.title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60) + '.mp4';
       directLinkBtn.style.display = '';
+      // phone download
+      phoneDownloadBtn.dataset.url = data.videoUrl;
+      phoneDownloadBtn.dataset.name = (data.title || 'video').replace(/[<>:"/\\|?*]/g, '_').substring(0, 40);
+      phoneDownloadBtn.dataset.platform = data.platform || '';
+      phoneDownloadBtn.dataset.title = data.title || '';
+      phoneDownloadBtn.dataset.cover = data.coverUrl || '';
+      phoneDownloadBtn.dataset.author = data.author || '';
+      phoneDownloadBtn.style.display = '';
     } else {
       directLinkBtn.style.display = 'none';
+      phoneDownloadBtn.style.display = '';
     }
     preview.classList.add('show');
     showSuccess('解析成功，可以下载了');
@@ -819,6 +857,58 @@ async function deleteRecord(filePath, btn) {
   }
 }
 
+// 清除下载记录（不删文件）
+async function clearHistory() {
+  const ok = await showModal('确定清除所有下载记录？下载的文件不会被删除。');
+  if (!ok) return;
+  try {
+    const res = await fetch('/api/clear-history', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      historyList.innerHTML = '<div class="history-empty">还没有下载记录</div>';
+      showSuccess('下载记录已清除');
+    }
+  } catch {
+    showError('清除失败');
+  }
+}
+
+// B站登录
+async function bilibiliLogin() {
+  const btn = document.getElementById('biliLoginBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 正在打开登录窗口...';
+  try {
+    const res = await fetch('/api/bilibili-login', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('biliLoginBtn').style.display = 'none';
+      document.getElementById('biliStatus').style.display = 'inline';
+      showSuccess('B站登录成功，现在可以下载完整视频了！');
+    } else {
+      showError(data.message || '登录未完成');
+      btn.textContent = '🔑 B站登录';
+      btn.disabled = false;
+    }
+  } catch (err) {
+    showError('登录失败: ' + err.message);
+    btn.textContent = '🔑 B站登录';
+    btn.disabled = false;
+  }
+}
+
+// 检测B站登录状态
+async function checkBiliStatus() {
+  try {
+    const res = await fetch('/api/bilibili-status');
+    const data = await res.json();
+    if (data.loggedIn) {
+      document.getElementById('biliLoginBtn').style.display = 'none';
+      document.getElementById('biliStatus').style.display = 'inline';
+    }
+  } catch {}
+}
+
 // 加载历史
 async function loadHistory() {
   try {
@@ -829,14 +919,15 @@ async function loadHistory() {
       return;
     }
     historyList.innerHTML = list.map((item, idx) => `
-      <div class="history-item" data-path="${item.path.replace(/"/g, '&quot;')}" data-idx="${idx}">
+      <div class="history-item" data-path="${(item.path||'').replace(/"/g, '&quot;')}" data-phone="${item.phoneDownload || ''}" data-idx="${idx}">
         <img class="thumb" src="${item.coverUrl || ''}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22><rect fill=%22%23f0f0f0%22 width=%2248%22 height=%2248%22/></svg>'">
         <div class="info">
           <div class="name">${item.title || item.fileName}</div>
           <div class="sub">${PLATFORM_NAMES[item.platform] || item.platform || ''} · ${formatSize(item.size)} · ${new Date(item.date).toLocaleString()}</div>
         </div>
         <div style="display:flex;gap:6px">
-          <button class="open-btn" onclick="openFileLocation(this.closest('.history-item').dataset.path)">打开</button>
+          <span class="phone-badge">📱 已下载到手机</span>
+	          <button class="open-btn" onclick="openFileLocation(this.closest('.history-item').dataset.path)">打开</button>
           <button class="del-btn" onclick="deleteRecord(this.closest('.history-item').dataset.path, this)">删除</button>
         </div>
       </div>
@@ -845,6 +936,28 @@ async function loadHistory() {
 }
 
 loadHistory();
+checkBiliStatus();
+
+
+// phone download
+phoneDownloadBtn.addEventListener("click", function() {
+  var url = phoneDownloadBtn.dataset.url;
+  var name = phoneDownloadBtn.dataset.name;
+  var plat = phoneDownloadBtn.dataset.platform;
+  var title = phoneDownloadBtn.dataset.title;
+  var cover = phoneDownloadBtn.dataset.cover;
+  var author = phoneDownloadBtn.dataset.author;
+  if (!url) return;
+  var a = document.createElement("a");
+  a.href = "/api/phone-download?url=" + encodeURIComponent(url) + "&name=" + encodeURIComponent(name) + "&platform=" + plat + "&title=" + encodeURIComponent(title || name) + "&coverUrl=" + encodeURIComponent(cover || "") + "&author=" + encodeURIComponent(author || "");
+  a.download = name + ".mp4";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(loadHistory, 2000);
+  phoneDownloadBtn.textContent = "下载中...";
+  setTimeout(function() { phoneDownloadBtn.textContent = "📱 下载到手机"; }, 4000);
+});
 </script>
 </body>
 </html>

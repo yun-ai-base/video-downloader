@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4361ee">
+<title>视频下载器 (云端版)</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #1a1a2e;
+    min-height: 100vh;
+  }
+  .container { max-width: 640px; margin: 0 auto; padding: 20px 16px; }
+
+  .header { text-align: center; padding: 24px 0 20px; }
+  .header h1 { font-size: 22px; font-weight: 700; }
+  .header p { font-size: 13px; color: #666; margin-top: 4px; }
+  .cloud-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: #e8f5e9;
+    color: #2e7d32;
+    font-size: 11px;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+
+  .input-group { display: flex; gap: 10px; }
+  .input-group input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    font-size: 14px;
+    outline: none;
+  }
+  .input-group input:focus { border-color: #4361ee; }
+
+  .btn {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-primary { background: #4361ee; color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #3651d4; }
+  .btn-success { background: #06d6a0; color: #fff; }
+  .btn-success:hover:not(:disabled) { background: #05b88a; }
+  .btn-outline {
+    background: transparent;
+    color: #666;
+    border: 1.5px solid #ddd;
+  }
+  .btn-outline:hover:not(:disabled) { border-color: #999; color: #333; }
+
+  .preview { display: none; animation: fadeIn .3s; }
+  .preview.show { display: block; }
+
+  .preview-cover {
+    position: relative;
+    width: 100%;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #f0f0f0;
+    aspect-ratio: 16/9;
+    max-height: 360px;
+    object-fit: cover;
+  }
+  .preview-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .preview-cover .platform-badge {
+    position: absolute; top: 10px; left: 10px;
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 11px; font-weight: 600; color: #fff;
+    background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+  }
+  .preview-info { padding-top: 14px; }
+  .preview-info h2 { font-size: 16px; font-weight: 600; line-height: 1.4; }
+  .preview-info .author { font-size: 13px; color: #888; margin-top: 4px; }
+
+  .download-area {
+    margin-top: 14px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .error-msg {
+    display: none;
+    padding: 12px 16px;
+    background: #fff0f0;
+    color: #d32f2f;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-top: 12px;
+    border: 1px solid #ffd0d0;
+  }
+  .error-msg.show { display: block; }
+
+  .success-msg {
+    display: none;
+    padding: 12px 16px;
+    background: #f0fff4;
+    color: #2e7d32;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-top: 12px;
+    border: 1px solid #c8f0d0;
+  }
+  .success-msg.show { display: block; }
+
+  .info-box {
+    background: #f5f7ff;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    color: #555;
+    line-height: 1.6;
+    margin-top: 16px;
+    border: 1px solid #e0e5ff;
+  }
+  .info-box strong { color: #4361ee; }
+
+  .url-box {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+  }
+  .url-box input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #333;
+    outline: none;
+    background: #fafafa;
+  }
+
+  .app-footer { text-align: center; padding: 20px 0 32px; font-size: 12px; color: #bbb; }
+
+  .spinner {
+    display: inline-block;
+    width: 16px; height: 16px;
+    border: 2px solid rgba(255,255,255,.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🌐 视频下载器</h1>
+    <p>粘贴链接，一键解析 — 手机直接下载</p>
+    <span class="cloud-badge">☁️ 云端直连 · 不走服务器流量</span>
+  </div>
+
+  <!-- 输入区 -->
+  <div class="card">
+    <div class="input-group">
+      <input type="text" id="urlInput" placeholder="粘贴 抖音/快手/B站/YouTube/小红书/X/微博 分享链接..." autofocus>
+      <button class="btn btn-primary" id="parseBtn">解析</button>
+    </div>
+    <div class="error-msg" id="errorMsg"></div>
+    <div class="success-msg" id="successMsg"></div>
+  </div>
+
+  <!-- 预览区 -->
+  <div class="card preview" id="preview">
+    <div class="preview-cover">
+      <img id="coverImg" src="" alt="封面">
+      <span class="platform-badge" id="platformBadge">平台</span>
+    </div>
+    <div class="preview-info">
+      <h2 id="videoTitle">标题</h2>
+      <div class="author" id="videoAuthor">作者</div>
+      <div class="download-area">
+        <button class="btn btn-success" id="downloadBtn">📥 下载</button>
+        <button class="btn btn-outline" id="copyUrlBtn" style="display:none">📋 复制链接</button>
+        <button class="btn btn-outline" id="openUrlBtn" style="display:none">🌐 浏览器打开</button>
+      </div>
+
+      <!-- 下载链接显示 -->
+      <div class="url-box" id="urlBox" style="display:none">
+        <input type="text" id="directUrl" readonly onclick="this.select()">
+        <button class="btn btn-outline" style="padding:8px 14px;font-size:12px" onclick="copyDirectUrl()">复制</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card info-box">
+    <strong>💡 怎么用</strong><br>
+    • 粘贴视频链接 → 点解析 → 点下载<br>
+    • 如果下载按钮无效，点「复制链接」在其他浏览器打开<br>
+    • 视频直接走源站CDN下载，服务器不中转文件<br>
+    • 全平台支持：抖音/快手/B站/YouTube/小红书/X/微博
+  </div>
+
+  <div class="app-footer">视频下载器 · 云端版 v1.0</div>
+</div>
+
+<script>
+const urlInput = document.getElementById('urlInput');
+const parseBtn = document.getElementById('parseBtn');
+const preview = document.getElementById('preview');
+const coverImg = document.getElementById('coverImg');
+const platformBadge = document.getElementById('platformBadge');
+const videoTitle = document.getElementById('videoTitle');
+const videoAuthor = document.getElementById('videoAuthor');
+const downloadBtn = document.getElementById('downloadBtn');
+const copyUrlBtn = document.getElementById('copyUrlBtn');
+const openUrlBtn = document.getElementById('openUrlBtn');
+const urlBox = document.getElementById('urlBox');
+const directUrl = document.getElementById('directUrl');
+const errorMsg = document.getElementById('errorMsg');
+const successMsg = document.getElementById('successMsg');
+
+let currentVideo = null;
+
+const PLATFORM_NAMES = {
+  douyin: '抖音', kuaishou: '快手', xiaohongshu: '小红书',
+  x: 'X', bilibili: 'B站', youtube: 'YouTube', weibo: '微博',
+};
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.classList.add('show');
+  successMsg.classList.remove('show');
+}
+function showSuccess(msg) {
+  successMsg.textContent = msg;
+  successMsg.classList.add('show');
+  errorMsg.classList.remove('show');
+}
+function clearMessages() {
+  errorMsg.classList.remove('show');
+  successMsg.classList.remove('show');
+}
+
+// 解析
+parseBtn.addEventListener('click', async () => {
+  const url = urlInput.value.trim();
+  if (!url) { showError('请输入视频链接'); return; }
+
+  clearMessages();
+  parseBtn.disabled = true;
+  parseBtn.innerHTML = '<span class="spinner"></span>解析中...';
+  preview.classList.remove('show');
+
+  try {
+    const res = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    const data = await res.json();
+    if (!data.success) { showError(data.error || '解析失败'); return; }
+
+    currentVideo = data;
+    coverImg.src = data.coverUrl || '';
+    platformBadge.textContent = PLATFORM_NAMES[data.platform] || data.platform;
+    videoTitle.textContent = data.title || '视频';
+    videoAuthor.textContent = data.author ? `作者: ${data.author}` : '';
+
+    // 显示下载区域
+    downloadBtn.style.display = data.videoUrl ? '' : 'none';
+    if (data.videoUrl) {
+      directUrl.value = data.videoUrl;
+      urlBox.style.display = 'flex';
+      copyUrlBtn.style.display = '';
+      openUrlBtn.style.display = '';
+      openUrlBtn.dataset.url = data.videoUrl;
+    }
+
+    preview.classList.add('show');
+    showSuccess('✅ 解析成功！点下载或复制链接');
+  } catch (err) {
+    showError('网络错误: ' + err.message);
+  } finally {
+    parseBtn.disabled = false;
+    parseBtn.textContent = '解析';
+  }
+});
+
+urlInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') parseBtn.click();
+});
+
+// 直接下载（尝试浏览器 fetch + blob）
+downloadBtn.addEventListener('click', async () => {
+  if (!currentVideo?.videoUrl) return;
+  const url = currentVideo.videoUrl;
+  const fileName = (currentVideo.title || 'video').replace(/[<>:"\/\\|?*]/g, '_') + '.mp4';
+
+  downloadBtn.disabled = true;
+  downloadBtn.textContent = '⏳ 下载中...';
+
+  try {
+    const resp = await fetch(url, { mode: 'cors' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const blob = await resp.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 100);
+    showSuccess('✅ 下载完成！');
+  } catch (e) {
+    showError('浏览器直接下载失败，请点「复制链接」在其他App中下载');
+  } finally {
+    downloadBtn.textContent = '📥 下载';
+    downloadBtn.disabled = false;
+  }
+});
+
+// 复制链接
+function copyDirectUrl() {
+  const url = directUrl.value;
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(() => {
+    showSuccess('✅ 链接已复制，可粘贴到浏览器或下载工具中下载');
+  }).catch(() => {
+    directUrl.select();
+    document.execCommand('copy');
+    showSuccess('✅ 链接已复制');
+  });
+}
+
+// 浏览器打开
+openUrlBtn.addEventListener('click', () => {
+  const url = openUrlBtn.dataset.url;
+  if (url) window.open(url, '_blank');
+});
+</script>
+</body>
+</html>

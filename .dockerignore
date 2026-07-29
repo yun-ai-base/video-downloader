@@ -1,0 +1,10 @@
+node_modules
+downloads
+chrome-profile
+android
+server.js
+server-mobile.js
+package-lock.json
+*.log
+history.json
+.git
