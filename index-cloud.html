@@ -311,33 +311,12 @@ urlInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') parseBtn.click();
 });
 
-// 直接下载（尝试浏览器 fetch + blob）
-downloadBtn.addEventListener('click', async () => {
+// 直接下载（打开新窗口，浏览器原生处理）
+downloadBtn.addEventListener('click', () => {
   if (!currentVideo?.videoUrl) return;
   const url = currentVideo.videoUrl;
-  const fileName = (currentVideo.title || 'video').replace(/[<>:"\/\\|?*]/g, '_') + '.mp4';
-
-  downloadBtn.disabled = true;
-  downloadBtn.textContent = '⏳ 下载中...';
-
-  try {
-    const resp = await fetch(url, { mode: 'cors' });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const blob = await resp.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); }, 100);
-    showSuccess('✅ 下载完成！');
-  } catch (e) {
-    showError('浏览器直接下载失败，请点「复制链接」在其他App中下载');
-  } finally {
-    downloadBtn.textContent = '📥 下载';
-    downloadBtn.disabled = false;
-  }
+  window.open(url, '_blank');
+  showSuccess('✅ 已打开视频链接，浏览器弹出后右键可保存');
 });
 
 // 复制链接
