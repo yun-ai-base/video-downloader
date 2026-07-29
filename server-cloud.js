@@ -121,8 +121,16 @@ app.get('/api/dl', async (req, res) => {
       const result = await parseBilibili(shareUrl);
       videoUrl = result.videoUrl;
     } else {
-      const result = await parseYtDlp(shareUrl);
-      videoUrl = shareUrl; // yt-dlp 解析的用原链
+      // 用 yt-dlp --get-url 获取真实视频地址
+      videoUrl = await new Promise((resolve, reject) => {
+        const cmd = `"${YTDLP}" --get-url --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
+        exec(cmd, { maxBuffer: 1024 * 1024, timeout: 60000 }, (err, stdout, stderr) => {
+          if (err) return reject(new Error('获取视频地址失败: ' + (stderr || err.message).substring(0, 200)));
+          const url = stdout.trim().split('\n')[0];
+          if (url) resolve(url);
+          else reject(new Error('未获取到视频地址'));
+        });
+      });
     }
     if (!videoUrl) throw new Error('无法获取视频地址');
 
