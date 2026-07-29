@@ -111,32 +111,24 @@ app.get('/api/status', (req, res) => res.json({ ok: true, name: '视频下载器
 
 // ===== 下载代理：获取真实地址后重定向 =====
 app.get('/api/dl', async (req, res) => {
-  const { shareUrl, platform, title } = req.query;
+  const { shareUrl } = req.query;
   if (!shareUrl) return res.status(400).json({ error: '缺少视频地址' });
 
+  console.log('[下载] 获取真实地址:', shareUrl.substring(0, 60));
   try {
-    let realUrl;
-    if (platform === 'bilibili') {
-      const result = await parseBilibili(shareUrl);
-      realUrl = result.videoUrl;
-    } else {
-      realUrl = await new Promise((resolve, reject) => {
-        const cmd = `"${YTDLP}" --get-url --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
-        exec(cmd, { maxBuffer: 1024 * 1024, timeout: 30000 }, (err, stdout, stderr) => {
-          if (err) return reject(new Error(stderr?.substring(0, 100) || err.message));
-          const u = stdout.trim().split('\n')[0];
-          if (u) resolve(u); else reject(new Error('无视频地址'));
-        });
+    const realUrl = await new Promise((resolve, reject) => {
+      const cmd = `"${YTDLP}" --get-url --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
+      exec(cmd, { maxBuffer: 1024 * 1024, timeout: 45000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error((stderr || err.message + '').substring(0, 150)));
+        const u = (stdout || '').trim().split('\n')[0];
+        if (u) resolve(u); else reject(new Error('无视频地址'));
       });
-    }
-    if (!realUrl) throw new Error('无法获取视频地址');
-
-    // 直接重定向到真实视频地址（浏览器自己处理下载/播放）
+    });
+    console.log('[下载] 重定向到:', realUrl.substring(0, 80));
     res.redirect(302, realUrl);
   } catch (err) {
-    if (!res.headersSent) res.status(500).json({ error: err.message });
-  }
-});
+    console.error('[下载失败]', err.message);
+    try { res.status(500).json({ error: err.message }); } catch {}
   }
 });
 
