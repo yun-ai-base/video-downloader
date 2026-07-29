@@ -108,6 +108,31 @@ app.post('/api/parse', async (req, res) => {
 });
 
 app.get('/api/status', (req, res) => res.json({ ok: true, name: '视频下载器', version: '1.0.0' }));
+
+// ===== 下载代理：强制下载视频 =====
+app.get('/api/dl', async (req, res) => {
+  const { url, title } = req.query;
+  if (!url) return res.status(400).json({ error: '缺少视频地址' });
+
+  const fileName = encodeURIComponent((title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60)) + '.mp4';
+  const http = require(url.startsWith('https') ? 'https' : 'http');
+
+  try {
+    const videoRes = await new Promise((resolve, reject) => {
+      http.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.bilibili.com/' }, rejectUnauthorized: false }, resolve).on('error', reject);
+    });
+
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
+    res.setHeader('Content-Type', videoRes.headers['content-type'] || 'video/mp4');
+    if (videoRes.headers['content-length']) {
+      res.setHeader('Content-Length', videoRes.headers['content-length']);
+    }
+    videoRes.pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: '下载失败: ' + err.message });
+  }
+});
+
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index-cloud.html')));
 
 app.listen(PORT, '0.0.0.0', () => console.log(`✅ 视频下载器云端版已启动: ${PORT}`));
