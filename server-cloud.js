@@ -109,17 +109,28 @@ app.post('/api/parse', async (req, res) => {
 
 app.get('/api/status', (req, res) => res.json({ ok: true, name: '视频下载器', version: '1.0.0' }));
 
-// ===== 下载代理：强制下载视频 =====
+// ===== 下载代理：重新解析+强制下载 =====
 app.get('/api/dl', async (req, res) => {
-  const { url, title } = req.query;
-  if (!url) return res.status(400).json({ error: '缺少视频地址' });
-
-  const fileName = encodeURIComponent((title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60)) + '.mp4';
-  const http = require(url.startsWith('https') ? 'https' : 'http');
+  const { shareUrl, platform, title } = req.query;
+  if (!shareUrl) return res.status(400).json({ error: '缺少视频地址' });
 
   try {
+    // 重新解析获取最新视频地址
+    let videoUrl;
+    if (platform === 'bilibili') {
+      const result = await parseBilibili(shareUrl);
+      videoUrl = result.videoUrl;
+    } else {
+      const result = await parseYtDlp(shareUrl);
+      videoUrl = shareUrl; // yt-dlp 解析的用原链
+    }
+    if (!videoUrl) throw new Error('无法获取视频地址');
+
+    const fileName = encodeURIComponent((title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60)) + '.mp4';
+    const http = require(videoUrl.startsWith('https') ? 'https' : 'http');
+
     const videoRes = await new Promise((resolve, reject) => {
-      http.get(url, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.bilibili.com/' }, rejectUnauthorized: false }, resolve).on('error', reject);
+      http.get(videoUrl, { headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.bilibili.com/' }, rejectUnauthorized: false }, resolve).on('error', reject);
     });
 
     res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
@@ -129,7 +140,8 @@ app.get('/api/dl', async (req, res) => {
     }
     videoRes.pipe(res);
   } catch (err) {
-    res.status(500).json({ error: '下载失败: ' + err.message });
+    console.error('[下载失败]', err.message);
+    if (!res.headersSent) res.status(500).json({ error: '下载失败: ' + err.message });
   }
 });
 
