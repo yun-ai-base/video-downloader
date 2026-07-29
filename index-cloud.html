@@ -313,11 +313,12 @@ urlInput.addEventListener('keydown', (e) => {
 
 // 直接下载（通过服务器中转，强制下载文件）
 downloadBtn.addEventListener('click', () => {
-  if (!currentVideo?.videoUrl) return;
-  const url = currentVideo.videoUrl;
+  if (!currentVideo?.shareUrl) return;
+  const shareUrl = currentVideo.shareUrl;
+  const platform = currentVideo.platform || '';
   const title = currentVideo.title || 'video';
-  // 跳转到中转下载接口
-  window.location.href = '/api/dl?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title);
+  // 跳转到中转下载接口（传分享链接，服务端重新解析+下载）
+  window.location.href = '/api/dl?shareUrl=' + encodeURIComponent(shareUrl) + '&platform=' + encodeURIComponent(platform) + '&title=' + encodeURIComponent(title);
   showSuccess('✅ 下载已开始');
 });
 
