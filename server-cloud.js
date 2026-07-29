@@ -109,7 +109,7 @@ app.post('/api/parse', async (req, res) => {
 
 app.get('/api/status', (req, res) => res.json({ ok: true, name: '视频下载器', version: '1.0.0' }));
 
-// ===== 下载代理：获取真实地址后重定向 =====
+// ===== 下载代理：服务器中转流式下载 =====
 app.get('/api/dl', async (req, res) => {
   const { shareUrl } = req.query;
   if (!shareUrl) return res.status(400).json({ error: '缺少视频地址' });
@@ -124,8 +124,41 @@ app.get('/api/dl', async (req, res) => {
         if (u) resolve(u); else reject(new Error('无视频地址'));
       });
     });
-    console.log('[下载] 重定向到:', realUrl.substring(0, 80));
-    res.redirect(302, realUrl);
+    console.log('[下载] 直链:', realUrl.substring(0, 80));
+
+    // 服务器转发（带 Referer，绕过 CDN 防盗链）
+    const mod = require(realUrl.startsWith('https') ? 'https' : 'http');
+    const referer = shareUrl.includes('bilibili') ? 'https://www.bilibili.com/' :
+                    shareUrl.includes('weibo') ? 'https://video.weibo.com/' :
+                    shareUrl.includes('douyin') ? 'https://www.douyin.com/' :
+                    shareUrl.includes('youtube') ? 'https://www.youtube.com/' : 'https://www.bilibili.com/';
+
+    const videoRes = await new Promise((resolve, reject) => {
+      mod.get(realUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', 'Referer': referer },
+        rejectUnauthorized: false, timeout: 60000
+      }, resolve).on('error', reject);
+    });
+
+    if (videoRes.statusCode >= 400) {
+      // CDN 拒接，降级到 yt-dlp 管道下载
+      console.log('[下载] 直连失败(' + videoRes.statusCode + ')，降级到 yt-dlp');
+      const fileName = encodeURIComponent(shareUrl.match(/[^/]+$/)?.[0] || 'video') + '.mp4';
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
+      res.setHeader('Content-Type', 'video/mp4');
+      const cp = require('child_process');
+      const proc = cp.exec(`"${YTDLP}" -f best[height<=1080] -o - --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`,
+        { maxBuffer: 512 * 1024 * 1024, timeout: 300000 });
+      proc.stdout.pipe(res);
+      proc.on('error', () => { if (!res.headersSent) res.status(500).end(); });
+      return;
+    }
+
+    const fileName = encodeURIComponent(shareUrl.match(/[^/]+$/)?.[0] || 'video') + '.mp4';
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
+    res.setHeader('Content-Type', videoRes.headers['content-type'] || 'video/mp4');
+    if (videoRes.headers['content-length']) res.setHeader('Content-Length', videoRes.headers['content-length']);
+    videoRes.pipe(res);
   } catch (err) {
     console.error('[下载失败]', err.message);
     try { res.status(500).json({ error: err.message }); } catch {}
