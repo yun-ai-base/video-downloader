@@ -109,23 +109,33 @@ app.post('/api/parse', async (req, res) => {
 
 app.get('/api/status', (req, res) => res.json({ ok: true, name: '视频下载器', version: '1.0.0' }));
 
-// ===== 下载代理：yt-dlp 直接管道输出 =====
+// ===== 下载代理：获取真实地址后重定向 =====
 app.get('/api/dl', async (req, res) => {
   const { shareUrl, platform, title } = req.query;
   if (!shareUrl) return res.status(400).json({ error: '缺少视频地址' });
 
-  const fileName = encodeURIComponent((title || 'video').replace(/[<>:"\/\\|?*]/g, '_').substring(0, 60)) + '.mp4';
-  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${fileName}`);
-  res.setHeader('Content-Type', 'video/mp4');
+  try {
+    let realUrl;
+    if (platform === 'bilibili') {
+      const result = await parseBilibili(shareUrl);
+      realUrl = result.videoUrl;
+    } else {
+      realUrl = await new Promise((resolve, reject) => {
+        const cmd = `"${YTDLP}" --get-url --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
+        exec(cmd, { maxBuffer: 1024 * 1024, timeout: 30000 }, (err, stdout, stderr) => {
+          if (err) return reject(new Error(stderr?.substring(0, 100) || err.message));
+          const u = stdout.trim().split('\n')[0];
+          if (u) resolve(u); else reject(new Error('无视频地址'));
+        });
+      });
+    }
+    if (!realUrl) throw new Error('无法获取视频地址');
 
-  // 用 yt-dlp 直接下载并输出到 stdout
-  const cmd = `"${YTDLP}" -f best[height<=1080] -o - --no-playlist --no-warnings --no-check-certificate "${shareUrl}"`;
-  const proc = exec(cmd, { maxBuffer: 1024 * 1024 * 500, timeout: 300000 });
-
-  proc.stdout.pipe(res);
-  proc.stderr.on('data', d => process.stderr.write(d));
-  proc.on('error', err => { if (!res.headersSent) res.status(500).json({ error: '下载失败' }); });
-  proc.on('exit', code => { if (code !== 0) console.error('[下载失败] exit:', code); });
+    // 直接重定向到真实视频地址（浏览器自己处理下载/播放）
+    res.redirect(302, realUrl);
+  } catch (err) {
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  }
 });
   }
 });
